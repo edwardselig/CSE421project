@@ -85,14 +85,20 @@ struct thread
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
+    int64_t sleep_time;
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    int nice;							/*thread's nice value*/
+    int recent_cpu;							/*recent cpu value*/
     int priority;                       /* Priority. */
+    int initial_priority;				/*Priority on thread creation*/
+    struct lock *waiting;					/*lock thread is waiting on*/
+    struct list donations;				/*list of priority donation values the thread can obtain*/
+    struct list_elem donation_element;	/*element to be inserted in a threads donation_element list*/
     struct list_elem allelem;           /* List element for all threads list. */
-
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+    int isdonated;						/*true if donation is occuring*/
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -138,4 +144,18 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+void sort_ready(void);
+bool compare_priority (const struct list_elem *first,const struct list_elem *second,void *aux UNUSED);//sorts highest priority thread
+/*FP conversion functions, each purpose is explained in it's name*/
+int intToFixedPoint(int n);
+int fixedPointToIntNoRound(int n);
+int fixedPointToIntRound(int n);
+int addFixed(int fp1, int fp2);
+int subtractFixed(int fp1, int fp2);
+int addFPandINT(int fp, int i);
+int subMixed(int fp, int i);
+int multiplyFixed(int fp1, int fp2);
+int multiplyFPandINT(int fp, int i);
+int divFixed(int fp1, int fp2);
+int divFPandINT(int fp, int i);
 #endif /* threads/thread.h */

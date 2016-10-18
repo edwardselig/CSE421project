@@ -75,7 +75,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-int load_average = 0;//load average for MLFQS
+int load_average;//load average for MLFQS
 //static bool compare_sleep_time (const struct list_elem *a_,const struct list_elem *b_,void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
@@ -145,30 +145,28 @@ thread_tick (void)
 		 struct thread *current = thread_current ();
 		 if (timer_ticks () % 100 == 0){
 		 int ready = list_size (&ready_list);
-  		if (current != idle_thread){
-    		ready++;
-    		}
+  		if (thread_current () != idle_thread){
+    		ready++;}
     	load_average = addFixed(multiplyFixed(divFPandINT(intToFixedPoint(59),60),load_average),multiplyFPandINT(divFPandINT(intToFixedPoint(1),60),ready));
     	thread_foreach (&getRecentCPU, NULL);
     	}
-    	if (current != idle_thread){
+    	if (thread_current () != idle_thread){
     		t->recent_cpu = addFPandINT(t->recent_cpu,1);}
     	if (timer_ticks () % TIME_SLICE == 0){
-    	//thread_foreach (&threadGetPriority, NULL);
-    	threadGetPriority(current,NULL);}
+    	thread_foreach (&threadGetPriority, NULL);}
     }
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
 }
 void threadGetPriority (struct thread *t, void *aux UNUSED){
-	int priority = fixedPointToIntNoRound(subtractFixed(subtractFixed(intToFixedPoint(63),divFPandINT(t->recent_cpu, 4)),intToFixedPoint(t->nice * 2)));
-	if (priority > PRI_MAX){
-    	priority = PRI_MAX;}
+	int int_priority = fixedPointToIntNoRound(subtractFixed(subtractFixed(intToFixedPoint(63),divFPandINT(t->recent_cpu, 4)),intToFixedPoint(t->nice * 2)));
+	if (int_priority > PRI_MAX){
+    	int_priority = PRI_MAX;}
 
-  if (priority < PRI_MIN){
-    priority = PRI_MIN;}
-	t->priority = priority;
+  if (int_priority < PRI_MIN){
+    int_priority = PRI_MIN;}
+	t->priority = int_priority;
 }
 void getRecentCPU(struct thread *t,void *aux UNUSED){
 	int speedup = multiplyFPandINT(load_average, 2);
@@ -450,19 +448,16 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice) 
+thread_set_nice (int nice UNUSED) 
 {
-	if(thread_mlfqs){
+	if(!thread_mlfqs){
 		thread_current()->nice = nice;
 		threadGetPriority(thread_current(),NULL);
+		sort_ready();
 		if(!list_empty(&ready_list)){
-			sort_ready();
 			struct thread *thread = list_entry (list_begin (&ready_list),struct thread, elem);
-		if(thread->priority > thread_current()->priority){
-			if(intr_context ()){
-				intr_yield_on_return ();
-			}else{
-			thread_yield();}
+		if(thread->priority > thread_current()){
+			thread_yield();
 		}
 		}
 	}
@@ -474,7 +469,7 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  if(thread_mlfqs){
+  if(!thread_mlfqs){
   	return thread_current ()->nice;
   }
 }
@@ -580,7 +575,6 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   if(thread_mlfqs){
-  	t->nice = 0;
   	threadGetPriority(t,NULL);
   }else{
   t->priority = priority;
